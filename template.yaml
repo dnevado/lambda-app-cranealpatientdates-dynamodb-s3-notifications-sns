@@ -1,0 +1,180 @@
+# https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-features.html#gettingstarted-features-package
+
+# More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 900
+
+Parameters: 
+  EnvType: 
+    Description: Environment type.
+    Default: prod
+    Type: String
+    AllowedValues: 
+      - prod
+      - test
+    ConstraintDescription: must specify prod or test.
+
+Resources:   
+  SuscriptionSNSAppCranealPatientDates:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: david_nevado@yahoo.es
+      Protocol: email
+      TopicArn: !Ref AppCranealPatientDatesSNS
+  CronSNSTopicCranealLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal: {Service: [lambda.amazonaws.com]}
+          Action: ['sts:AssumeRole']
+      Path: /
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+      Policies:
+      - PolicyName: SNSPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+              - "SNS:*" 
+              Resource: ['*']  
+  #AppCranealPatientDatesLayer:
+  #  Type: AWS::Serverless::LayerVersion
+  #  Properties:
+  #      LayerName: PythonSNSDynamoLayerWrapper
+  #      Description: Some code to share with the other lambda functions
+  #      ContentUri: ./layer
+  #      CompatibleRuntimes:
+  #          - python3.7
+  #      RetentionPolicy: Retain  
+  AppCranealPatientDatesSNS: 
+    Type: AWS::SNS::Topic
+    Properties: 
+      DisplayName: AppCranealPatientDatesSNS      
+      TopicName: AppCranealPatientDatesSNS        
+  AppCranealPatientDatesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: appcranealpatientdates
+  CronSNSTopicCranealFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: CronSNSTopicCranealFunction
+      CodeUri: cron_sns_topic_cranealpatientdates/
+      Handler: app.lambda_handler
+      #Layers: https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html#configuration-layers-path
+      #  - arn:aws:lambda:eu-central-1:291573578422:layer:layerpythoncranealpatientdates:2
+      Timeout: 120
+      Role: !GetAtt CronSNSTopicCranealLambdaExecutionRole.Arn
+      Runtime: python3.7      
+      Environment:
+        Variables:
+          PatientsDynamoTable: !Ref AppCranealPatientDates          
+          TopicArn: !Ref AppCranealPatientDatesSNS
+      Events:
+        InvocationLevel:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 6 * * ? *) # 06:00  AM (UTC) every day
+        CronSNSTopicCranealApi:
+          Type: HttpApi # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /cronsnstopiccraneal
+            Method: get
+      #Events:
+      #  CreateAppCranealPatientDatesS3NewFile:
+      #    Type: S3
+      #    Properties:
+      #      Bucket: !Ref AppCranealPatientDatesBucket
+      #      Events: s3:ObjectCreated:*      
+      #  AppCranealPatientDatesFunctionApi:
+      #    Type: HttpApi # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+      #    Properties:
+      #      Path: /appcranealpatientdates
+      #      Method: get
+  AppCranealPatientDatesFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      FunctionName: AppCranealPatientDatesFunction
+      CodeUri: app_cranealpatientdates/
+      Handler: app.lambda_handler
+      #Layers:
+      #  Layer:         
+      #    - arn:aws:lambda:eu-central-1:291573578422:layer:layerpythoncranealpatientdates:2
+      Timeout: 120
+      Runtime: python3.7      
+      Environment:
+        Variables:
+          PatientsDynamoTable: !Ref AppCranealPatientDates
+          TargetBucket: appcranealpatientdates          
+          TopicArn: !Ref AppCranealPatientDatesSNS
+      Events:
+        CreateAppCranealPatientDatesS3NewFile:
+          Type: S3
+          Properties:
+            Bucket: !Ref AppCranealPatientDatesBucket
+            Events: s3:ObjectCreated:*      
+        AppCranealPatientDatesFunctionApi:
+          Type: HttpApi # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /appcranealpatientdates
+            Method: get
+  
+  #ProcessDynamoDBStream:
+  #  Type: AWS::Serverless::Function
+  #  Properties:
+  #    Handler: handler
+  #    Runtime: runtime
+  #    Policies: AWSLambdaDynamoDBExecutionRole
+  #    Events:
+  #      Stream:
+  #        Type: DynamoDB
+  #        Properties:
+  #          Stream: !GetAtt DynamoDBTable.StreamArn
+  #          BatchSize: 100
+  #          StartingPosition: TRIM_HORIZON
+  AppCranealPatientDates:
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      TableName : appcranealpatientdates
+      AttributeDefinitions:                 
+        - AttributeName: name
+          AttributeType: S  
+        - AttributeName: traumadate
+          AttributeType: S  
+      KeySchema: 
+        - AttributeName: name
+          KeyType: HASH        
+        - AttributeName: traumadate
+          KeyType: RANGE      
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api  
+  CronSNSTopicCranealFunction:
+    Description: "CronSNSTopicCranealFunction Lambda Function ARN"
+    Value: !GetAtt CronSNSTopicCranealFunction.Arn
+  CronSNSTopicCranealFunctionIamRole:
+    Description: "Implicit IAM Role created for CronSNSTopicCranealFunction function"
+    Value: !GetAtt CronSNSTopicCranealFunction.Arn
+  AppCranealPatientDatesFunction:
+    Description: "AppCranealPatientDatesFunction Lambda Function ARN"
+    Value: !GetAtt AppCranealPatientDatesFunction.Arn
+  AppCranealPatientDatesFunctionIamRole:
+    Description: "Implicit IAM Role created for AppCranealPatientDatesFunction function"
+    Value: !GetAtt AppCranealPatientDatesFunctionRole.Arn    

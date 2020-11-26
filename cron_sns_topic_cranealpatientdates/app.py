@@ -7,7 +7,7 @@ import json
 from  common.sns_wrapper import *
 from  common.dynamob_wrapper import *
 
-
+# https://github.com/aws-cloudformation/custom-resource-helper
 
 
 
@@ -179,21 +179,30 @@ def lambda_handler(event, context):
     # ,
     # "MB": context.memory_limit_in_mb,
     #         "log_stream_name": context.log_stream_name
-
+    TargetBucket_EnvVar = os.environ['TargetBucket'] 
     SnsTopicARN =  os.environ['TopicArn'] 
     TablePatientsData_EnvVar = os.environ['PatientsDynamoTable'] 
-
+    if not TargetBucket_EnvVar:
+        TargetBucket_EnvVar = "appcranealpatientdates"
     if not SnsTopicARN or not SnsTopicARN in  "arn":
-        SnsTopicARN = "arn:aws:sns:eu-central-1:291573578422:AppCranealPatientDatesSNS" # local mode     
+        SnsTopicARN = "arn:aws:sns:eu-central-1:291573578422:AppCranealPatientDatesSNSTopic" # local mode     
     if not TablePatientsData_EnvVar:
         TablePatientsData_EnvVar = "appcranealpatientdates" # local mode             
-    print ("Sending message to SNS ARN:" + SnsTopicARN)
-    publish_sns_topic(SnsTopicARN, "Hello from Lambda Function")
-    
-    data = dump_patientdata(TablePatientsData_EnvVar,dynamodb)
-    print(data)
-
+    print ("Sending message to SNS ARN:" + SnsTopicARN)           
+    # Return a dict object 
+    patiensData = dump_patientdata(TablePatientsData_EnvVar,dynamodb)    
+    strData = json.dumps(patiensData)
+    print(strData)   
+    # https://s3.console.aws.amazon.com/s3/buckets/appcranealpatientdates?region=eu-central-1&tab=objects 
+    urlBucketToLogin = "https://s3.console.aws.amazon.com/s3/buckets/" +  TargetBucket_EnvVar + "?region=eu-central-1&tab=objects"
+    # json no empty , to improve 
+    if len(strData)>4:            
+        publish_sns_topic(SnsTopicARN, strData)        
+    else:
+        patiensData  = '{"Message": "No new data found  to be processed. <br> Upload a CSV file with headers name;traumadate ex.  DNM2;2020-01-01 to ' + urlBucketToLogin  + '"}'  
+        strData   =  json.loads(patiensData)
     return {
         "statusCode": 200,
-        "body": json.loads('{"message": "Message Published"}')
+        'headers': { 'Content-Type': 'application/json' },
+        "body": strData
     }

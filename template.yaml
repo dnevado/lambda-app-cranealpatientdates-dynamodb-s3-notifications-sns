@@ -10,22 +10,41 @@ Globals:
     Timeout: 900
 
 Parameters: 
-  EnvType: 
-    Description: Environment type.
-    Default: prod
+  DynamoDBCreationParameter: 
+    Description: DynamoDBRecreation 0 o 1 to avoid deleting current data.
+    Default: 0
     Type: String
     AllowedValues: 
-      - prod
-      - test
-    ConstraintDescription: must specify prod or test.
-
+      - 0
+      - 1
+    ConstraintDescription: must specify 0  or 1.
+Conditions:
+  CreateDynamoDBResourcesCondition: !Equals [!Ref DynamoDBCreationParameter, 1]
 Resources:   
-  SuscriptionSNSAppCranealPatientDates:
+  #DynamoDBCustomResource:
+  #  Type: AWS::CloudFormation::CustomResource
+  #  Version: "1.0"
+  #  Properties:
+  #    ServiceToken: !GetAtt DynamoDBCustomResourceFunction.Arn
+  #    #FunctionName: !Ref randomerror   
+  DynamoDBCustomResourceFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      FunctionName: DynamoDBCustomResourceFunction
+      CodeUri: dynamodb_custom_resource_validator/
+      Handler: app.lambda_handler      
+      #Condition: CreateDynamoDBResourcesCondition
+      Timeout: 120
+      Runtime: python3.7      
+      Environment:
+        Variables:
+          PatientsDynamoTable: !Ref AppCranealPatientDatesTable            
+  SuscripSNSAppCranealPatientDates:
     Type: AWS::SNS::Subscription
     Properties:
       Endpoint: david_nevado@yahoo.es
       Protocol: email
-      TopicArn: !Ref AppCranealPatientDatesSNS
+      TopicArn: !Ref AppCranealPatientDatesSNSTopic
   CronSNSTopicCranealLambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -47,21 +66,34 @@ Resources:
             - Effect: Allow
               Action:
               - "SNS:*" 
-              Resource: ['*']  
-  #AppCranealPatientDatesLayer:
-  #  Type: AWS::Serverless::LayerVersion
-  #  Properties:
-  #      LayerName: PythonSNSDynamoLayerWrapper
-  #      Description: Some code to share with the other lambda functions
-  #      ContentUri: ./layer
-  #      CompatibleRuntimes:
-  #          - python3.7
-  #      RetentionPolicy: Retain  
-  AppCranealPatientDatesSNS: 
+              Resource: ['*']    
+  AppCranealSNSTopicCranealLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal: {Service: [lambda.amazonaws.com]}
+          Action: ['sts:AssumeRole']
+      Path: /
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+      Policies:
+      - PolicyName: SNSPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+              - "SNS:*" 
+              Resource: ['*']    
+  AppCranealPatientDatesSNSTopic: 
     Type: AWS::SNS::Topic
     Properties: 
-      DisplayName: AppCranealPatientDatesSNS      
-      TopicName: AppCranealPatientDatesSNS        
+      DisplayName: AppCranealPatientDatesSNSTopic      
+      TopicName: AppCranealPatientDatesSNSTopic        
   AppCranealPatientDatesBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -76,11 +108,15 @@ Resources:
       #  - arn:aws:lambda:eu-central-1:291573578422:layer:layerpythoncranealpatientdates:2
       Timeout: 120
       Role: !GetAtt CronSNSTopicCranealLambdaExecutionRole.Arn
+      Policies:
+        AmazonS3FullAccess:
+          BucketName:  appcranealpatientdates #!Ref AppBucketName
       Runtime: python3.7      
       Environment:
         Variables:
-          PatientsDynamoTable: !Ref AppCranealPatientDates          
-          TopicArn: !Ref AppCranealPatientDatesSNS
+          PatientsDynamoTable: !Ref AppCranealPatientDatesTable          
+          TopicArn: !Ref AppCranealPatientDatesSNSTopic
+          TargetBucket: appcranealpatientdates          
       Events:
         InvocationLevel:
           Type: Schedule
@@ -90,34 +126,21 @@ Resources:
           Type: HttpApi # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
           Properties:
             Path: /cronsnstopiccraneal
-            Method: get
-      #Events:
-      #  CreateAppCranealPatientDatesS3NewFile:
-      #    Type: S3
-      #    Properties:
-      #      Bucket: !Ref AppCranealPatientDatesBucket
-      #      Events: s3:ObjectCreated:*      
-      #  AppCranealPatientDatesFunctionApi:
-      #    Type: HttpApi # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-      #    Properties:
-      #      Path: /appcranealpatientdates
-      #      Method: get
+            Method: get     
   AppCranealPatientDatesFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
       FunctionName: AppCranealPatientDatesFunction
       CodeUri: app_cranealpatientdates/
-      Handler: app.lambda_handler
-      #Layers:
-      #  Layer:         
-      #    - arn:aws:lambda:eu-central-1:291573578422:layer:layerpythoncranealpatientdates:2
+      Handler: app.lambda_handler      
       Timeout: 120
       Runtime: python3.7      
+      Role: !GetAtt AppCranealSNSTopicCranealLambdaExecutionRole.Arn
       Environment:
         Variables:
-          PatientsDynamoTable: !Ref AppCranealPatientDates
+          PatientsDynamoTable: !Ref AppCranealPatientDatesTable
           TargetBucket: appcranealpatientdates          
-          TopicArn: !Ref AppCranealPatientDatesSNS
+          TopicArn: !Ref AppCranealPatientDatesSNSTopic
       Events:
         CreateAppCranealPatientDatesS3NewFile:
           Type: S3
@@ -129,22 +152,15 @@ Resources:
           Properties:
             Path: /appcranealpatientdates
             Method: get
-  
-  #ProcessDynamoDBStream:
-  #  Type: AWS::Serverless::Function
-  #  Properties:
-  #    Handler: handler
-  #    Runtime: runtime
-  #    Policies: AWSLambdaDynamoDBExecutionRole
-  #    Events:
-  #      Stream:
-  #        Type: DynamoDB
-  #        Properties:
-  #          Stream: !GetAtt DynamoDBTable.StreamArn
-  #          BatchSize: 100
-  #          StartingPosition: TRIM_HORIZON
-  AppCranealPatientDates:
+  AppCranealPatientDatesTable:
     Type: AWS::DynamoDB::Table
+    #Condition: CreateDynamoDBResourcesCondition
+    #custom:
+    #  dev:
+    #    deletion_policy: Delete
+    #  prod:
+    #    deletion_policy: Retain
+    DeletionPolicy: Retain
     Properties: 
       TableName : appcranealpatientdates
       AttributeDefinitions:                 
@@ -175,6 +191,8 @@ Outputs:
   AppCranealPatientDatesFunction:
     Description: "AppCranealPatientDatesFunction Lambda Function ARN"
     Value: !GetAtt AppCranealPatientDatesFunction.Arn
-  AppCranealPatientDatesFunctionIamRole:
-    Description: "Implicit IAM Role created for AppCranealPatientDatesFunction function"
-    Value: !GetAtt AppCranealPatientDatesFunctionRole.Arn    
+  #AppCranealPatientDatesFunctionIamRole:
+  # Description: "Implicit IAM Role created for AppCranealPatientDatesFunction function"
+  #  Value: !GetAtt AppCranealPatientDatesFunctionRole.Arn    
+  #DynamoDBExistsValidation:
+  #    Value: !GetAtt DynamoDBCustomResourceFunction.DynamoDBExists

@@ -102,44 +102,20 @@ def query_patientdata(date, accidentdatetable,dynamodb=None):
     )
     return response['Items']
 
-
 def dump_patientdata(accidentdatetable,dynamodb=None):
-    dynamo_table = boto3.resource('dynamodb').Table(accidentdatetable)
-    response = dynamo_table.scan()
-
-    dictPatients = response # the response is in the form of a dictionary
+    results = []
+    print (accidentdatetable)
+    last_evaluated_key = None
+    table = dynamodb.Table(accidentdatetable.lower())
+    response = table.scan()
+    print  (response)
+    data = response['Items']
 
     while 'LastEvaluatedKey' in response:
         response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
-        dictPatients.update(response)
-
-    listPatient = {}        
-    for patient in dictPatients['Items']:   
-
-        today = date.today()
-        formatted_today = date.today().strftime('%Y-%m-%d')             
-        revision_message = ""
-        founded = False
-        if formatted_today == patient["traumadate_48h"]: 
-            revision_message  = "Revision found for 48h" 
-            founded = True
-        if formatted_today == patient["traumadate_72h"]: 
-            revision_message  = "Revision found for 72h" 
-            founded = True
-        if formatted_today == patient["traumadate_10d"]: 
-            revision_message  = "Revision found for 10 days" 
-            founded = True
-        if formatted_today == patient["traumadate_180d"]: 
-            revision_message  = "Revision found for 180 days" 
-            founded = True
-        if formatted_today == patient["traumadate_360d"]: 
-            revision_message  = "Revision found for 360 days"                         
-            founded = True
-        if founded:                 
-            listPatient[patient["name"]] = revision_message
-    
-    return listPatient
-   
+        data.extend(response['Items'])
+    return data
+    print  (data)
 
 # Usage
 

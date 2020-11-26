@@ -10,3 +10,8 @@ functions = ["AppCranealPatientDatesFunction"]
 codeuri = "cron_sns_topic_cranealpatientdates/"
 runtime = "python3.7"
 functions = ["CronSNSTopicCranealFunction"]
+
+[build_definitions.290c179f-069e-4685-9be3-3852bbafb6de]
+codeuri = "dynamodb_custom_resource_validator/"
+runtime = "python3.7"
+functions = ["DynamoDBCustomResourceFunction"]

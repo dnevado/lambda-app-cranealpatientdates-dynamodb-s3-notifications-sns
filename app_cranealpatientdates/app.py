@@ -5,6 +5,8 @@ import os
 
 
 from  common.dynamob_wrapper import *
+from  common.sns_wrapper import * 
+
 
 
 
@@ -196,6 +198,7 @@ def lambda_handler(event, context):
     try:
         # Verification where to connect files to specific bucket 
         TargetBucket_EnvVar = os.environ['TargetBucket'] 
+        SnsTopicARN =  os.environ['TopicArn'] 
         bObjectCreated = event['Records'][0]['eventName'] == 'ObjectCreated:Put' 
         bBucketMatched = TargetBucket_EnvVar == event['Records'][0]['s3']['bucket']['name']
         # SnsTopic
@@ -207,19 +210,28 @@ def lambda_handler(event, context):
             js = dfDataTimeFrame.to_json(orient="records")
             TablePatientsData_EnvVar = os.environ['PatientsDynamoTable'] 
             load_patientdatas(json.loads(js),TablePatientsData_EnvVar, dynamodb)
-            responseStatus = 'SUCCESS'
-        else:
-            responseStatus = 'No target bucket or S3 Event not matched '
-    except Exception as e:
-        print('Failed to process:', e)
-        responseStatus = 'FAILURE'
-        responseData = {'Failure': 'Something bad happened.'}
+            responseStatus = '{"Message": "Data succesfully loaded from CSV file:' + S3FILE + '"}'  
+            publish_sns_topic(SnsTopicARN, responseStatus)        
 
+        else:
+            urlBucketToLogin = "https://s3.console.aws.amazon.com/s3/buckets/" +  TargetBucket_EnvVar + "?region=eu-central-1&tab=objects"
+            responseStatus = '{"Message": "No new data found  to be processed. <br> Upload a CSV file with headers name;traumadate ex.  DNM2;2020-01-01  to ' + urlBucketToLogin  + '"}'  
+            #responseStatus = 'No target bucket or S3 Event not matched'
+    except Exception as e:
+        urlBucketToLogin = "https://s3.console.aws.amazon.com/s3/buckets/" +  TargetBucket_EnvVar + "?region=eu-central-1&tab=objects"
+        responseStatus = '{"Message": "No new data found  to be processed. <br> Upload a CSV file with headers name;traumadate ex.  DNM2;2020-01-01  to ' + urlBucketToLogin  + '"}'  
+        print('Failed to process:', e)
+        #responseStatus = '{"MessageError": "' + str(e) + '"}' 
+        #print(json.loads(responseStatus))    
+        #responseData = {'Failure': 'Something bad happened.'}
+    print(json.loads(responseStatus))
     return {
-        "statusCode": 200,
-        "body": json.loads('{
-            "message": responseStatus,
-            "MB": context.memory_limit_in_mb,
-            "log_stream_name": context.log_stream_name
-        }'),
+        'statusCode': 200,
+        'headers': { 'Content-Type': 'application/json' },
+        'body':   json.loads(responseStatus)
     }
+    #return {
+    #    "statusCode": 200,
+    #    'headers': { 'Content-Type': 'application/json' },
+    #    "body": json.loads(message)
+    #}

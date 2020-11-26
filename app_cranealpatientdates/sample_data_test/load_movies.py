@@ -52,10 +52,16 @@ def load_movies(movies, dynamodb=None):
         table.put_item(Item=movie)
 
 if __name__ == '__main__':
-    dynamodb = boto3.resource('dynamodb')
+
+    responseStatus = "message"
+    message = '{"message":"' + responseStatus   + '"}'
+    print (message)
+    print (json.loads(message))
+
+    #dynamodb = boto3.resource('dynamodb')
     #movie_table = create_movie_table(dynamodb)
     #print("Table status:", movie_table.table_status)
-    with open("./moviedata.json") as json_file:
-        movie_list = json.load(json_file, parse_float=Decimal)
-    load_movies(movie_list,dynamodb)
+    #with open("./moviedata.json") as json_file:
+    #    movie_list = json.load(json_file, parse_float=Decimal)
+    #load_movies(movie_list,dynamodb)
     

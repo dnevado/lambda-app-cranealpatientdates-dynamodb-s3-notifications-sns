@@ -43,7 +43,7 @@ To build and deploy your application for the first time, run the following in yo
 
 ```bash
 sam build --use-container
-sam deploy --guided
+sam deploy --guided --region eu-central-1
 ```
 
 **Specifiy the region accordingly**

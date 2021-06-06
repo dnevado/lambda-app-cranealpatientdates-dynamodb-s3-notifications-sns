@@ -185,7 +185,7 @@ def lambda_handler(event, context):
     if not TargetBucket_EnvVar:
         TargetBucket_EnvVar = "appcranealpatientdates"
     if not SnsTopicARN or not SnsTopicARN in  "arn":
-        SnsTopicARN = "arn:aws:sns:eu-central-1:291573578422:AppCranealPatientDatesSNSTopic" # local mode     
+        SnsTopicARN = "arn:aws:sns:eu-central-1:291573578422:AppCranealPatientDatesSNSTopicName" # local mode     
     if not TablePatientsData_EnvVar:
         TablePatientsData_EnvVar = "appcranealpatientdates" # local mode             
     print ("Sending message to SNS ARN:" + SnsTopicARN)           

@@ -44,7 +44,13 @@ Resources:
     Properties:
       Endpoint: david_nevado@yahoo.es
       Protocol: email
-      TopicArn: !Ref AppCranealPatientDatesSNSTopic
+      TopicArn: !Ref AppCranealPatientDatesSNSTopicName
+  SuscripSNSAppCranealPatientDates2:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: ana.maria.castano.leon@gmail.com
+      Protocol: email
+      TopicArn: !Ref AppCranealPatientDatesSNSTopicName
   CronSNSTopicCranealLambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -89,11 +95,11 @@ Resources:
               Action:
               - "SNS:*" 
               Resource: ['*']    
-  AppCranealPatientDatesSNSTopic: 
+  AppCranealPatientDatesSNSTopicName: 
     Type: AWS::SNS::Topic
     Properties: 
-      DisplayName: AppCranealPatientDatesSNSTopic      
-      TopicName: AppCranealPatientDatesSNSTopic        
+      DisplayName: AppCranealPatientDatesSNSTopicName      
+      TopicName: AppCranealPatientDatesSNSTopicName        
   AppCranealPatientDatesBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -109,13 +115,13 @@ Resources:
       Timeout: 120
       Role: !GetAtt CronSNSTopicCranealLambdaExecutionRole.Arn
       Policies:
-        AmazonS3FullAccess:
-          BucketName:  appcranealpatientdates #!Ref AppBucketName
+        - AmazonDynamoDBFullAccess
+        - AmazonS3FullAccess          
       Runtime: python3.7      
       Environment:
         Variables:
           PatientsDynamoTable: !Ref AppCranealPatientDatesTable          
-          TopicArn: !Ref AppCranealPatientDatesSNSTopic
+          TopicArn: !Ref AppCranealPatientDatesSNSTopicName
           TargetBucket: appcranealpatientdates          
       Events:
         InvocationLevel:
@@ -134,13 +140,16 @@ Resources:
       CodeUri: app_cranealpatientdates/
       Handler: app.lambda_handler      
       Timeout: 120
+      Policies:
+        - AmazonDynamoDBFullAccess
+        - AmazonS3FullAccess    
       Runtime: python3.7      
       Role: !GetAtt AppCranealSNSTopicCranealLambdaExecutionRole.Arn
       Environment:
         Variables:
           PatientsDynamoTable: !Ref AppCranealPatientDatesTable
           TargetBucket: appcranealpatientdates          
-          TopicArn: !Ref AppCranealPatientDatesSNSTopic
+          TopicArn: !Ref AppCranealPatientDatesSNSTopicName
       Events:
         CreateAppCranealPatientDatesS3NewFile:
           Type: S3
@@ -168,11 +177,23 @@ Resources:
           AttributeType: S  
         - AttributeName: traumadate
           AttributeType: S  
+        #- AttributeName: hnumber
+        #  AttributeType: S 
+        #- AttributeName: type
+        #  AttributeType: S  
+        #- AttributeName: sampletype
+        #  AttributeType: S        
       KeySchema: 
         - AttributeName: name
           KeyType: HASH        
         - AttributeName: traumadate
-          KeyType: RANGE      
+          KeyType: RANGE
+        #- AttributeName: hnumber
+        #  KeyType: RANGE
+        #- AttributeName: type
+        #  KeyType: RANGE
+        #- AttributeName: sampletype
+        #  KeyType: RANGE      
       ProvisionedThroughput: 
         ReadCapacityUnits: 1
         WriteCapacityUnits: 1

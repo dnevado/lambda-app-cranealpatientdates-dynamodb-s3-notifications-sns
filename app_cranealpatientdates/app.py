@@ -152,7 +152,7 @@ from  common.sns_wrapper import *
 print('Loading function')
 s3 = boto3.resource('s3')
 dynamodb = boto3.resource('dynamodb')
-
+print ("dynamodb connection :", dynamodb)
 
 def load_data(bucket, key):
     """ 
@@ -166,7 +166,8 @@ def load_data(bucket, key):
     """
     s3 = boto3.client('s3')        
     obj = s3.get_object(Bucket=bucket, Key=key)        
-    df = pd.read_csv(obj['Body'],delimiter=';', header=1, names=('name', 'traumadate')) 
+    df = pd.read_csv(obj['Body'],delimiter=';', header=0, names=('name', 'traumadate', 'sampletype', 'type_d','hnumber')) 
+    print (df)
     return df
 
 def lambda_handler(event, context):
@@ -192,8 +193,6 @@ def lambda_handler(event, context):
     """
     # https://docs.aws.amazon.com/AmazonS3/latest/dev/notification-content-structure.html
     # print("Received event: " + json.dumps(event, indent=2))    
-
-    pattern_file_included = "patient"
     responseStatus = ""
     try:
         # Verification where to connect files to specific bucket 
@@ -207,19 +206,21 @@ def lambda_handler(event, context):
             S3BUCKET = event['Records'][0]['s3']['bucket']['name']
             S3FILE = event['Records'][0]['s3']['object']['key']
             dfDataTimeFrame = load_data(S3BUCKET,S3FILE)   
-            js = dfDataTimeFrame.to_json(orient="records")
-            TablePatientsData_EnvVar = os.environ['PatientsDynamoTable'] 
-            load_patientdatas(json.loads(js),TablePatientsData_EnvVar, dynamodb)
+            # js = dfDataTimeFrame.to_json(orient="records")
+            TablePatientsData_EnvVar = os.environ['PatientsDynamoTable']          
+            load_patientdatas(dfDataTimeFrame,TablePatientsData_EnvVar, dynamodb)
             responseStatus = '{"Message": "Data succesfully loaded from CSV file:' + S3FILE + '"}'  
-            publish_sns_topic(SnsTopicARN, responseStatus)        
-
+            publish_sns_topic(SnsTopicARN, responseStatus)             
+            #else:                
+            #    urlBucketToLogin = "https://s3.console.aws.amazon.com/s3/buckets/" +  TargetBucket_EnvVar + "?region=eu-central-1&tab=objects"
+            #    responseStatus = '{"Message": "Invalid  file. <br> Upload a CSV file with headers name;hnumber;type;sampletype;traumadate ex.  CML;1;TCE;Sangre;2021-03-19  to ' + urlBucketToLogin  + '"}'      
         else:
             urlBucketToLogin = "https://s3.console.aws.amazon.com/s3/buckets/" +  TargetBucket_EnvVar + "?region=eu-central-1&tab=objects"
-            responseStatus = '{"Message": "No new data found  to be processed. <br> Upload a CSV file with headers name;traumadate ex.  DNM2;2020-01-01  to ' + urlBucketToLogin  + '"}'  
+            responseStatus = '{"Message": "No new data found  to be processed. <br> Upload a CSV file with headers name;hnumber;type;sampletype;traumadate ex.  CML;1;TCE;Sangre;2021-03-19  to ' + urlBucketToLogin  + '"}'  
             #responseStatus = 'No target bucket or S3 Event not matched'
     except Exception as e:
         urlBucketToLogin = "https://s3.console.aws.amazon.com/s3/buckets/" +  TargetBucket_EnvVar + "?region=eu-central-1&tab=objects"
-        responseStatus = '{"Message": "No new data found  to be processed. <br> Upload a CSV file with headers name;traumadate ex.  DNM2;2020-01-01  to ' + urlBucketToLogin  + '"}'  
+        responseStatus = '{"Message": "No new data found  to be processed. <br> Upload a CSV file with headers name;hnumber;type;sampletype;traumadate ex.  CML;1;TCE;Sangre;2021-03-19  to ' + urlBucketToLogin  + '"}'  
         print('Failed to process:', e)
         #responseStatus = '{"MessageError": "' + str(e) + '"}' 
         #print(json.loads(responseStatus))    

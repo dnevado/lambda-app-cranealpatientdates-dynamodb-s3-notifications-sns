@@ -1,7 +1,5 @@
-name;traumadate
-DNM2;2020-01-01
-DNM3;2020-01-02
-DNM4;2020-01-03
-DNM5;2020-01-04
-DNM6;2020-01-05
-DNM7;2020-01-06
+name;hnumber;type;sampletype;traumadate
+CML;1;TCE;Sangre;2021-03-19
+CSE;1;TCE;Sangre;2021-03-26
+DRF;1;TCE;Sangre;2021-03-31
+CVP;1;TCE;Sangre;2021-04-02

@@ -46,6 +46,12 @@ sam build --use-container
 sam deploy --guided --region eu-central-1
 ```
 
+**Special permissions**
+
+Make sure you add S3 and DynamoDB Full Access to both Lambda Execution Roles
+
+
+
 **Specifiy the region accordingly**
 
 The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:

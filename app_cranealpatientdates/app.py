@@ -2,6 +2,8 @@ import json
 import boto3
 import pandas as pd 
 import os
+from urllib.parse import unquote_plus
+
 
 
 from  common.dynamob_wrapper import *
@@ -200,16 +202,23 @@ def lambda_handler(event, context):
         SnsTopicARN =  os.environ['TopicArn'] 
         bObjectCreated = event['Records'][0]['eventName'] == 'ObjectCreated:Put' 
         bBucketMatched = TargetBucket_EnvVar == event['Records'][0]['s3']['bucket']['name']
+
+        print("TargetBucket_EnvVar:" +str(TargetBucket_EnvVar))
+        print("SnsTopicARN:" + str(SnsTopicARN))        
         # SnsTopic
         if bObjectCreated and bBucketMatched:
             # leemos los ficheros y los guardamos en la tabla de DynamoDB          
-            S3BUCKET = event['Records'][0]['s3']['bucket']['name']
-            S3FILE = event['Records'][0]['s3']['object']['key']
-            dfDataTimeFrame = load_data(S3BUCKET,S3FILE)   
+            S3BUCKET = event['Records'][0]['s3']['bucket']['name']                        
+            S3FILE = event['Records'][0]['s3']['object']['key']    
+            filename_key = unquote_plus (S3FILE)            
+            print("S3BUCKET:" + S3BUCKET)
+            print("S3FILE:" + S3FILE)            
+            print("filename_key:" + filename_key)                                 
+            dfDataTimeFrame = load_data(S3BUCKET,filename_key)   
             # js = dfDataTimeFrame.to_json(orient="records")
             TablePatientsData_EnvVar = os.environ['PatientsDynamoTable']          
             load_patientdatas(dfDataTimeFrame,TablePatientsData_EnvVar, dynamodb)
-            responseStatus = '{"Message": "Data succesfully loaded from CSV file:' + S3FILE + '"}'  
+            responseStatus = '{"Message": "Data succesfully loaded from CSV file:' + filename_key + '"}'  
             publish_sns_topic(SnsTopicARN, responseStatus)             
             #else:                
             #    urlBucketToLogin = "https://s3.console.aws.amazon.com/s3/buckets/" +  TargetBucket_EnvVar + "?region=eu-central-1&tab=objects"

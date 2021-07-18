@@ -136,10 +136,10 @@ def dump_patientdata(accidentdatetable,dynamodb=None):
             revision_message  = "Revision found for 360 days"                         
             founded = True
         if founded:                 
-            listPatient[patient["name"]] = revision_message
+            listPatient[patient["name"]] = revision_message  + "hnumber:" + str(patient["hnumber"])  +  ",sampletype:" + str(patient["sampletype"])  +  ",traumadate:" + str(patient["traumadate"])    +  ",type_d:" + str(patient["type_d"])  
     
     return listPatient
-   
+    º
 
 # Usage
 
